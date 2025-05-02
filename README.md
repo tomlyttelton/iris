@@ -1,122 +1,91 @@
-# Iris
+# Iris (Cloud Function + MCP)
 
-**Iris** is a TypeScript-based AI voice assistant that interacts via phone calls. It receives inbound calls through [Vapi](https://vapi.ai), orchestrates an intelligent workflow using [Temporal](https://temporal.io), scrapes real-time data using [Apify](https://apify.com/), generates an LLM-powered response, and initiates an outbound call to deliver the result.
+**Iris** is a serverless AI assistant that runs as a Google Cloud Function and conforms to the MCP (Modular Command Platform) interface. It handles an inbound phone number, scrapes relevant news, generates an LLM-based response, and optionally initiates an outbound phone call using Vapi.
+
+This version exposes each logical step (news scraping, prompt generation, and call) as individual **MCP tools**, making it composable within a broader MCP workflow.
 
 ---
 
 ## 🧠 Overview
 
-When someone calls Iris, the system:
+When a user calls or requests data:
 
-1. **Accepts the call** using Vapi's API.
-2. **Starts a Temporal workflow** to manage state and execution.
-3. **Runs Apify agents** to scrape the latest news or context.
-4. **Generates a response** via LLM using the gathered data.
-5. **Calls the user back** with the generated spoken reply.
+1. Iris uses **Apify** to scrape real-time news headlines.
+2. It uses a local **LLM prompt** to generate a spoken summary.
+3. Optionally, it uses **Vapi** to make an outbound phone call with the generated message.
 
 ---
 
-## 🛠️ Tech Stack
+## 🌐 MCP Tools
 
-| Component         | Technology                    |
-|------------------|-------------------------------|
-| Orchestration    | Temporal TypeScript SDK       |
-| Voice interface  | Vapi                          |
-| Scraping agents  | Apify SDK                     |
-| Response logic   | Custom LLM prompts            |
-| Runtime          | Node.js + TypeScript          |
-| Hosting (future) | Google Cloud Run (or similar) |
+The following HTTP POST endpoints are exposed as MCP tools:
+
+- `POST /mcp/tools/news`  
+  → Runs Apify and returns a list of news headlines.
+
+- `POST /mcp/tools/prompt`  
+  → Accepts an array of headlines and returns a voice-ready summary.
+
+- `POST /mcp/tools/call`  
+  → Accepts `{ phoneNumber, message }` and triggers an outbound call using Vapi.
+
+Each returns `{ output: ... }` in MCP-compliant JSON.
+
+---
+
+## ☁️ Deploying to Google Cloud Functions
+
+### 1. Prerequisites
+
+- Node.js 18+ locally
+- GCP project with Cloud Functions (2nd Gen) enabled
+- `gcloud` CLI installed and configured
+
+### 2. Deploy
+
+```bash
+gcloud functions deploy iris-mcp   --gen2   --runtime=nodejs20   --region=us-central1   --source=.   --entry-point=app   --trigger-http   --allow-unauthenticated
+```
+
+### 3. Test
+
+```bash
+curl -X POST https://REGION-PROJECT.cloudfunctions.net/iris-mcp/mcp/tools/news
+```
+
+---
+
+## 🧪 Local Development
+
+```bash
+pnpm install
+pnpm start
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-iris/
-├── workflows/
-│   └── irisWorkflow.ts         # Temporal workflow definition
-├── activities/
-│   ├── getNewsData.ts          # Runs Apify scraping agents
-│   ├── generatePrompt.ts       # Creates LLM-ready prompt
-│   └── makeOutboundCall.ts     # Uses Vapi to call the user
-├── worker.ts                   # Temporal worker registration
-├── client.ts                   # Starts workflows
-├── utils/
-│   └── apifyClient.ts          # Helper for Apify interaction
-├── vapi/
-│   └── handler.ts              # Express handler for Vapi webhooks
+iris-cf/
+├── src/
+│   ├── index.ts             # Express app with MCP routes
+│   ├── getNewsData.ts       # Apify integration
+│   ├── generatePrompt.ts    # LLM-friendly summarizer
+│   └── makeOutboundCall.ts  # Vapi trigger
 ├── package.json
 └── tsconfig.json
 ```
 
 ---
 
-## 🚀 Getting Started (Local Dev)
+## 🔐 Environment Variables
 
-### Prerequisites
+Add a `.env` file or configure environment variables:
 
-- Node.js 18+
-- `npm` or `pnpm`
-- [Temporal CLI](https://docs.temporal.io/typescript/introduction/)
-- [Vapi API key](https://docs.vapi.ai/)
-- [Apify API token](https://docs.apify.com/sdk/js/)
-
-### Installation
-
-```bash
-git clone https://github.com/yourusername/iris
-cd iris
-pnpm install
+```env
+VAPI_API_KEY=your_vapi_api_key
 ```
-
-### Start Temporal Dev Server
-
-```bash
-npx temporalite start
-```
-
-### Run the Worker
-
-```bash
-pnpm start:worker
-```
-
-### Trigger a Workflow
-
-```bash
-pnpm start:client --phone="+1234567890"
-```
-
----
-
-## 🤖 AI Context Prompt (for model input)
-
-> You are Iris, a voice-based AI assistant. When a user calls, you run a workflow that gathers up-to-date information using Apify agents, summarizes key findings using an LLM prompt, and calls the user back via Vapi with a spoken summary. You aim to be concise, timely, and engaging when delivering information. Responses must be well-suited for phone-based voice output.
-
----
-
-## 🧪 Example Use Case
-
-1. User calls Iris via a Vapi webhook.
-2. Iris launches a workflow.
-3. Apify scrapes today's headlines.
-4. A prompt is created: “Give me a short, spoken news roundup for a tech-savvy listener.”
-5. Iris calls the user back and reads the AI-generated content.
-
----
-
-## 🔮 Roadmap
-
-- [ ] Complete core workflow with scraping + call back
-- [ ] Add conversational context support (multi-turn)
-- [ ] Improve LLM prompt design + voice formatting
-- [ ] Cloud deployment + persistent workers
-
----
-
-## 👥 Contributors
-
-- Tom Lyttelton – Creator & Engineer
 
 ---
 
