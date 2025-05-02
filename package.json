@@ -5,7 +5,7 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",
-    "deploy": "npm run build && gcloud functions deploy irisApi --gen2 --runtime=nodejs20 --region=us-central1 --entry-point=irisApi --source=. --trigger-http --allow-unauthenticated"
+    "deploy": "npm run build && gcloud functions deploy irisApi --gen2 --runtime=nodejs20 --region=us-central1 --entry-point=irisApi --source=dist --trigger-http --allow-unauthenticated --clear-env-vars --update-labels=deployment=update"
   },
   "dependencies": {
     "apify": "^3.4.0",
