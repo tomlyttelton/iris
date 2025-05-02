@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import { Request, Response } from 'express';
 import { getNewsData } from './getNewsData';
 import { generatePrompt } from './generatePrompt';
 import { makeOutboundCall } from './makeOutboundCall';
@@ -47,7 +48,7 @@ app.get('/mcp/manifest', (_req: Request, res: Response) => {
 
 app.post('/mcp/tools/iris-research', async (req: Request<IrisResearchRequest>, res: Response<IrisResearchResponse>) => {
   const { phoneNumber, query } = req.body;
-  
+
   if (!phoneNumber || !query) {
     return res.status(400).json({
       success: false,
@@ -74,4 +75,4 @@ app.post('/mcp/tools/iris-research', async (req: Request<IrisResearchRequest>, r
   }
 });
 
-export default app;
+export const irisApi = app;
