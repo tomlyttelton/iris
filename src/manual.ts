@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import { makeOutboundCall } from './makeOutboundCall';
+import { generateDigest } from './generateDigest';
+import { getNewsData } from './getNewsData';
 
 async function main() {
   const phoneNumber = process.env.PHONE_NUMBER;
@@ -8,6 +10,10 @@ async function main() {
   if (!phoneNumber) {
     throw new Error("PHONE_NUMBER environment variable is required.");
   }
+  // const news = await getNewsData(query);
+  // const digest = await generateDigest(query, news);
+  // console.log(digest);
+  
   await makeOutboundCall(phoneNumber);
   /*
   console.log("Fetching news...");

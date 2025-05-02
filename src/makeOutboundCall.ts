@@ -7,7 +7,7 @@ export async function makeOutboundCall(
     'https://api.vapi.ai/call',
     {
       assistantId: "4cb234b1-42dd-4284-9a48-8471edd57c06",
-      phoneNumberId: "fa255e3d-406c-4f95-aa9e-a6e54b2376da",
+      phoneNumberId: "67f75bfb-0a7c-4380-9152-c55f83ac4297",
       customer: {
         number: phoneNumber,
       },
