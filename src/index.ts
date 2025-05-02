@@ -26,12 +26,6 @@ interface IrisResearchRequest {
   query: string;
 }
 
-interface IrisResearchResponse {
-  success: boolean;
-  message: string;
-  error?: string;
-}
-
 interface ToolParams {
   phoneNumber: string;
   query: string;
