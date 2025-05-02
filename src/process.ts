@@ -9,8 +9,8 @@ export interface ProcessParams {
 
 export async function process({ phoneNumber, query }: ProcessParams): Promise<{ success: boolean; message: string }> {
   try {
-    // const news = await getNewsData();
-    // const prompt = await generatePrompt(news);
+    const news = await getNewsData();
+    //const prompt = await generatePrompt(news);
     await makeOutboundCall(phoneNumber);
     return {
       success: true,

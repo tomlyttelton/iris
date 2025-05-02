@@ -1,11 +1,17 @@
 import { ApifyClient } from 'apify-client';
 
-export async function getNewsData(query = 'latest news'): Promise<string[]> {
+export interface NewsArticle {
+  title: string;
+  url: string;
+  content: string;
+}
+
+export async function getNewsData(query = 'latest news'): Promise<NewsArticle[]> {
   const client = new ApifyClient({
     token: process.env.APIFY_API_TOKEN!,
   });
 
-  // Step 1: Google Search
+  // Step 1: Use Google Search
   const { defaultDatasetId: searchDatasetId } = await client.actor('apify/google-search-scraper').call({
     queries: query,
     resultsPerPage: 10,
@@ -14,11 +20,12 @@ export async function getNewsData(query = 'latest news'): Promise<string[]> {
 
   const searchResults = await client.dataset(searchDatasetId).listItems();
   const startUrls = searchResults.items
-    .map((item: any) => ({ url: item.url }))
-    .filter(Boolean)
+    .flatMap((item: any) => item.organicResults || [])
+    .map((result: any) => ({ url: result.url }))
+    .filter((item) => typeof item.url === 'string')
     .slice(0, 10);
 
-  // Step 2: Scrape each result page individually, no crawling
+  // Step 2: Scrape articles
   const { defaultDatasetId: datasetId } = await client.actor('apify/cheerio-scraper').call({
     startUrls,
     maxConcurrency: 10,
@@ -27,16 +34,58 @@ export async function getNewsData(query = 'latest news'): Promise<string[]> {
         const h1 = $('h1').first().text().trim();
         const titleTag = $('title').text().trim();
         const title = h1 || titleTag || null;
-        return title ? { title, url: request.url } : null;
+
+        const articleSelectors = [
+          'article',
+          '[class*="article"]',
+          '[class*="content"]',
+          '[class*="story"]',
+          '[id*="article"]',
+          '[id*="content"]',
+          '[id*="story"]'
+        ];
+
+        let content = '';
+        for (const selector of articleSelectors) {
+          const el = $(selector).first();
+          if (el && el.text().trim().length > 200) {
+            content = el.text().trim();
+            break;
+          }
+        }
+
+        if (!content) {
+          content = $('p')
+            .slice(0, 5)
+            .map((_, el) => $(el).text())
+            .get()
+            .join('\\n')
+            .trim();
+        }
+
+        return title && content
+          ? { title, url: request.url, content }
+          : null;
       }
     `,
   });
 
   const { items } = await client.dataset(datasetId).listItems();
 
-  const headlines = Array.from(
-    new Set(items.map((item: any) => item?.title).filter(Boolean))
-  );
+  const articles: NewsArticle[] = items
+    .filter((item: any): item is NewsArticle =>
+      typeof item?.title === 'string' &&
+      typeof item?.url === 'string' &&
+      typeof item?.content === 'string'
+    )
+    .reduce<NewsArticle[]>((acc, article) => {
+      const newsArticle = article as unknown as NewsArticle;
+      if (!acc.find((a) => a.title === newsArticle.title)) {
+        acc.push(newsArticle);
+      }
+      return acc;
+    }, [])
+    .slice(0, 50);
 
-  return headlines.slice(0, 50);
+  return articles;
 }
