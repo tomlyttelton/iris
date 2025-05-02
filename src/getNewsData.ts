@@ -28,10 +28,9 @@ export async function getNewsData(): Promise<string[]> {
 
   await Actor.exit();
 
-  // Clean up and return up to 5 unique headlines
   const headlines = Array.from(
     new Set(items.items.map((item: any) => item?.title).filter(Boolean))
   );
 
-  return headlines.slice(0, 5);
+  return headlines.slice(0, 50);
 }
