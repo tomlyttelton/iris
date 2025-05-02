@@ -1,18 +1,16 @@
-import { Actor } from 'apify';
+import { ApifyClient } from 'apify-client';
 
 export async function getNewsData(): Promise<string[]> {
-  await Actor.init();
+  const client = new ApifyClient({
+    token: process.env.APIFY_API_TOKEN!,
+  });
 
-  const run = await Actor.call('apify/website-content-crawler', {
+  const { defaultDatasetId } = await client.actor('apify/website-content-crawler').call({
     startUrls: [
       { url: 'https://www.bbc.com/news' },
-      { url: 'https://edition.cnn.com/' },
-      { url: 'https://www.foxnews.com/' },
     ],
     pseudoUrls: [
       { purl: 'https://www.bbc.com/news[.*]' },
-      { purl: 'https://edition.cnn.com/.*' },
-      { purl: 'https://www.foxnews.com/[.*]' },
     ],
     linkSelector: 'a[href]',
     maxRequestsPerCrawl: 15,
@@ -22,14 +20,10 @@ export async function getNewsData(): Promise<string[]> {
     },
   });
 
-  const { defaultDatasetId } = run;
-  const dataset = await Actor.openDataset(defaultDatasetId);
-  const items = await dataset.getData();
-
-  await Actor.exit();
+  const dataset = await client.dataset(defaultDatasetId).listItems();
 
   const headlines = Array.from(
-    new Set(items.items.map((item: any) => item?.title).filter(Boolean))
+    new Set(dataset.items.map((item: any) => item?.title).filter(Boolean))
   );
 
   return headlines.slice(0, 50);
