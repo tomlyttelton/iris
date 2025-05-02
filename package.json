@@ -2,10 +2,10 @@
   "name": "iris-research",
   "version": "0.1.0",
   "main": "src/index.ts",
-  "type": "module",
   "scripts": {
     "start": "ts-node src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "deploy": "npm run build && gcloud functions deploy irisApi --gen2 --runtime=nodejs20 --region=us-central1 --entry-point=irisApi --source=. --trigger-http --allow-unauthenticated"
   },
   "dependencies": {
     "apify": "^3.4.0",
