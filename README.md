@@ -1,35 +1,39 @@
-# Iris (Cloud Function + MCP)
+# Iris Research (MCP Cloud Function)
 
-**Iris** is a serverless AI assistant that runs as a Google Cloud Function and conforms to the MCP (Modular Command Platform) interface. It handles an inbound phone number, scrapes relevant news, generates an LLM-based response, and optionally initiates an outbound phone call using Vapi.
-
-This version exposes each logical step (news scraping, prompt generation, and call) as individual **MCP tools**, making it composable within a broader MCP workflow.
+**Iris Research** is a serverless AI assistant hosted on Google Cloud Functions. It accepts a phone number, scrapes real-time news using Apify, generates a spoken prompt using a custom LLM prompt, and places an outbound call using Vapi to relay the result — all through a single MCP-compatible endpoint.
 
 ---
 
 ## 🧠 Overview
 
-When a user calls or requests data:
+This is a single MCP tool named `iris-research` that:
 
-1. Iris uses **Apify** to scrape real-time news headlines.
-2. It uses a local **LLM prompt** to generate a spoken summary.
-3. Optionally, it uses **Vapi** to make an outbound phone call with the generated message.
+1. Accepts a phone number as input.
+2. Scrapes technology news headlines using Apify.
+3. Generates a voice-ready summary using a language model.
+4. Calls the user back with the generated message using Vapi.
 
 ---
 
-## 🌐 MCP Tools
+## 🌐 MCP Tool
 
-The following HTTP POST endpoints are exposed as MCP tools:
+### `POST /mcp/tools/iris-research`
 
-- `POST /mcp/tools/news`  
-  → Runs Apify and returns a list of news headlines.
+**Request:**
+```json
+{
+  "phoneNumber": "+14155550123"
+}
+```
 
-- `POST /mcp/tools/prompt`  
-  → Accepts an array of headlines and returns a voice-ready summary.
+**Response:**
+```json
+{
+  "output": "Call placed"
+}
+```
 
-- `POST /mcp/tools/call`  
-  → Accepts `{ phoneNumber, message }` and triggers an outbound call using Vapi.
-
-Each returns `{ output: ... }` in MCP-compliant JSON.
+This endpoint can be called by Vapi, another MCP agent, or any system that speaks HTTP and JSON.
 
 ---
 
@@ -37,29 +41,20 @@ Each returns `{ output: ... }` in MCP-compliant JSON.
 
 ### 1. Prerequisites
 
-- Node.js 18+ locally
+- Node.js 18+
 - GCP project with Cloud Functions (2nd Gen) enabled
 - `gcloud` CLI installed and configured
 
 ### 2. Deploy
 
 ```bash
-gcloud functions deploy iris-mcp   --gen2   --runtime=nodejs20   --region=us-central1   --source=.   --entry-point=app   --trigger-http   --allow-unauthenticated
+gcloud functions deploy iris-research   --gen2   --runtime=nodejs20   --region=us-central1   --source=.   --entry-point=app   --trigger-http   --allow-unauthenticated
 ```
 
 ### 3. Test
 
 ```bash
-curl -X POST https://REGION-PROJECT.cloudfunctions.net/iris-mcp/mcp/tools/news
-```
-
----
-
-## 🧪 Local Development
-
-```bash
-pnpm install
-pnpm start
+curl -X POST https://REGION-PROJECT.cloudfunctions.net/iris-research/mcp/tools/iris-research   -H "Content-Type: application/json"   -d '{"phoneNumber": "+14155550123"}'
 ```
 
 ---
@@ -67,12 +62,12 @@ pnpm start
 ## 📁 Project Structure
 
 ```
-iris-cf/
+iris-research/
 ├── src/
-│   ├── index.ts             # Express app with MCP routes
+│   ├── index.ts             # Main handler with single MCP tool
 │   ├── getNewsData.ts       # Apify integration
-│   ├── generatePrompt.ts    # LLM-friendly summarizer
-│   └── makeOutboundCall.ts  # Vapi trigger
+│   ├── generatePrompt.ts    # Prompt generator
+│   └── makeOutboundCall.ts  # Vapi call trigger
 ├── package.json
 └── tsconfig.json
 ```
@@ -81,11 +76,18 @@ iris-cf/
 
 ## 🔐 Environment Variables
 
-Add a `.env` file or configure environment variables:
+Create a `.env` file or configure the following:
 
 ```env
 VAPI_API_KEY=your_vapi_api_key
 ```
+
+---
+
+## 👥 Contributors
+
+- Tom Lyttelton – Creator & Engineer
+- Shapor Naghibzadeh
 
 ---
 
