@@ -1,8 +1,6 @@
 import express from 'express';
 import { Request, Response } from 'express';
-import { getNewsData } from './getNewsData';
-import { generatePrompt } from './generatePrompt';
-import { makeOutboundCall } from './makeOutboundCall';
+import { process, ProcessParams } from './process';
 
 const app = express();
 app.use(express.json());
@@ -20,16 +18,6 @@ app.use((req, res, next) => {
   
   next();
 });
-
-interface IrisResearchRequest {
-  phoneNumber: string;
-  query: string;
-}
-
-interface ToolParams {
-  phoneNumber: string;
-  query: string;
-}
 
 // Helper function to handle MCP protocol messages
 function handleMcpMessage(message: any, res: Response) {
@@ -85,7 +73,7 @@ function handleMcpMessage(message: any, res: Response) {
   } 
   else if (message.method === 'call_tool' && message.params.tool_id === 'iris-research') {
     // Tool execution
-    const params = message.params.params as ToolParams;
+    const params = message.params.params as ProcessParams;
     const { phoneNumber, query } = params;
     
     if (!phoneNumber || !query) {
@@ -100,37 +88,30 @@ function handleMcpMessage(message: any, res: Response) {
       res.write(`data: ${JSON.stringify(errResponse)}\n\n`);
       return;
     }
-    
+
     // Execute the tool asynchronously
-    getNewsData().then(news => {
-      return generatePrompt(news);
-    }).then(prompt => {
-      return makeOutboundCall(phoneNumber, prompt);
-    }).then(() => {
-      const response = {
-        jsonrpc: '2.0',
-        id: message.id,
-        result: {
-          success: true,
-          message: 'Call placed successfully'
-        }
-      };
-      
-      res.write(`data: ${JSON.stringify(response)}\n\n`);
-    }).catch(err => {
-      console.error(err);
-      const errResponse = {
-        jsonrpc: '2.0',
-        id: message.id,
-        error: {
-          code: -32000,
-          message: 'Failed to process request',
-          data: err instanceof Error ? err.message : 'Unknown error occurred'
-        }
-      };
-      
-      res.write(`data: ${JSON.stringify(errResponse)}\n\n`);
-    });
+    process({ phoneNumber, query })
+      .then(result => {
+        const response = {
+          jsonrpc: '2.0',
+          id: message.id,
+          result
+        };
+        res.write(`data: ${JSON.stringify(response)}\n\n`);
+      })
+      .catch(err => {
+        console.error(err);
+        const errResponse = {
+          jsonrpc: '2.0',
+          id: message.id,
+          error: {
+            code: -32000,
+            message: err.message || 'Failed to process request',
+            data: err.error || 'Unknown error occurred'
+          }
+        };
+        res.write(`data: ${JSON.stringify(errResponse)}\n\n`);
+      });
   }
   else {
     // Unknown method
@@ -236,7 +217,7 @@ app.get('/mcp/manifest', (_req: Request, res: Response) => {
 });
 
 app.post('/mcp/tools/iris-research', async (req: Request, res: Response) => {
-  const { phoneNumber, query } = req.body as IrisResearchRequest;
+  const { phoneNumber, query } = req.body as ProcessParams;
   if (!phoneNumber || !query) {
     return res.status(400).json({
       success: false,
@@ -245,19 +226,14 @@ app.post('/mcp/tools/iris-research', async (req: Request, res: Response) => {
     });
   }
   try {
-    const news = await getNewsData();
-    const prompt = await generatePrompt(news);
-    await makeOutboundCall(phoneNumber, prompt);
-    res.status(200).json({
-      success: true,
-      message: 'Call placed successfully'
-    });
-  } catch (err) {
+    const result = await process({ phoneNumber, query });
+    res.status(200).json(result);
+  } catch (err: any) {
     console.error(err);
     res.status(500).json({
       success: false,
-      message: 'Failed to process request',
-      error: err instanceof Error ? err.message : 'Unknown error occurred'
+      message: err.message || 'Failed to process request',
+      error: err.error || 'Unknown error occurred'
     });
   }
 });
