@@ -2,7 +2,9 @@
 
 ## 1. Product Overview
 
-Iris is a voice-based personal research assistant designed for the MCP and A2A Hackathon. Users interact with Iris via phone calls to request research, such as gathering different viewpoints on a news story. Iris processes the query, conducts research, summarizes findings, and calls the user back with results using VAPI’s voice AI platform.
+Iris is a voice-based personal research assistant designed for the [MCP and A2A Hackathon](https://mcp-and-a2a-hackathon.devpost.com/). This event challenges participants to build multimodal AI agents capable of advanced reasoning and autonomous decision-making to solve complex, real-world enterprise challenges. Participants are encouraged to utilize at least three sponsor tools in their projects, with a total of \$19,500 in cash prizes available.
+
+Users interact with Iris via phone calls to request research, such as gathering different viewpoints on a news story. Iris processes the query, conducts research, summarizes findings, and calls the user back with results using VAPI’s voice AI platform.
 
 ## 2. Key Features
 
@@ -36,6 +38,12 @@ Iris is a voice-based personal research assistant designed for the MCP and A2A H
 ### 3.4 Summarization
 
 * Use a large language model (e.g., OpenAI API) to create concise, coherent summaries of the research findings.
+
+### 3.5 Vendor Pricing
+
+* **VAPI**: Offers a startup program that includes \$1,000 in cash prizes and entry into their startups program. Pricing details can be found on the [VAPI website](https://vapi.ai/).
+* **Google Custom Search**: Provides 100 free searches per day. Beyond that, pricing is \$5 per 1,000 queries. More information is available on the [Google Custom Search pricing page](https://developers.google.com/custom-search/v1/overview).
+* **OpenAI API**: Pricing varies based on the model used. For example, GPT-4 is priced at \$0.03 per 1,000 tokens for prompts and \$0.06 per 1,000 tokens for completions. Detailed pricing can be found on the [OpenAI pricing page](https://openai.com/pricing).
 
 ## 4. Development Considerations
 
