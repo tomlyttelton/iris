@@ -21,17 +21,6 @@ app.use((req, res, next) => {
   next();
 });
 
-interface IrisResearchRequest {
-  phoneNumber: string;
-  query: string;
-}
-
-interface IrisResearchResponse {
-  success: boolean;
-  message: string;
-  error?: string;
-}
-
 interface ToolParams {
   phoneNumber: string;
   query: string;
@@ -42,11 +31,16 @@ function handleMcpMessage(message: any, res: Response) {
   console.log('Processing MCP message:', message);
   
   if (message.method === 'initialize') {
-    // Respond to initialization
+    // Respond to initialization with required fields
     const response = {
       jsonrpc: '2.0',
       id: message.id,
       result: {
+        protocolVersion: '2023-09-01', // Required field
+        serverInfo: { // Required field
+          name: 'iris-research-server',
+          version: '1.0.0'
+        },
         capabilities: {}
       }
     };
@@ -205,62 +199,6 @@ app.get('/sse', (req: Request, res: Response) => {
 
 app.post('/sse', (req: Request, res: Response) => {
   handleSseRequest(req, res);
-});
-
-// Keep your existing REST endpoints for backward compatibility
-app.get('/mcp/manifest', (_req: Request, res: Response) => {
-  res.json({
-    tools: [
-      {
-        id: "iris-research",
-        name: "Iris Research",
-        description: "Scrapes current news, generates a response, and places a phone call using Vapi.",
-        input: {
-          type: "object",
-          required: ["phoneNumber", "query"],
-          properties: {
-            phoneNumber: { type: "string", description: "Recipient's phone number in E.164 format" },
-            query: { type: "string", description: "User's query or research topic" }
-          }
-        },
-        output: {
-          type: "object",
-          properties: {
-            success: { type: "boolean" },
-            message: { type: "string" },
-            error: { type: "string" }
-          }
-        }
-      }
-    ]
-  });
-});
-
-app.post('/mcp/tools/iris-research', async (req: Request, res: Response) => {
-  const { phoneNumber, query } = req.body as IrisResearchRequest;
-  if (!phoneNumber || !query) {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing required parameters',
-      error: !phoneNumber ? 'Missing "phoneNumber"' : 'Missing "query"'
-    });
-  }
-  try {
-    const news = await getNewsData();
-    const prompt = await generatePrompt(news);
-    await makeOutboundCall(phoneNumber, prompt);
-    res.status(200).json({
-      success: true,
-      message: 'Call placed successfully'
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to process request',
-      error: err instanceof Error ? err.message : 'Unknown error occurred'
-    });
-  }
 });
 
 export const irisApi = app;
