@@ -1,13 +1,14 @@
 import { OpenAI } from 'openai';
+import { NewsArticle } from './getNewsData';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-async function generateDigest(headlines: string[], query: string): Promise<string> {
+export async function generateDigest(query: string, articles: NewsArticle[]): Promise<string> {
   const prompt = `
 You're a helpful assistant. The user is interested in: "${query}"
 
-Given these news headlines:
-${headlines.map(h => `- ${h}`).join('\n')}
+I have the following articles:
+${articles.map(a => `- ${a.title} - ${a.url}: "${a.content}"`).join('\n')}
 
 Write a short 3-sentence digest of the most relevant stories.
 `;
