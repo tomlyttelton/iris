@@ -1,241 +1,110 @@
-import express from 'express';
-import { Request, Response } from 'express';
-import { process, ProcessParams } from './process';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import cors from "cors";
+import "dotenv/config";
+import express, { Request, Response } from "express";
+import { z } from "zod";
+import { research, ResearchParams } from "./research.js";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-// Add CORS middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  next();
-});
+function getServer(): McpServer {
+  const server = new McpServer({
+    name: "iris-research-server",
+    version: "1.0.0",
+  });
 
-// Helper function to handle MCP protocol messages
-function handleMcpMessage(message: any, res: Response) {
-  console.log('Processing MCP message:', message);
-  
-  if (message.method === 'initialize') {
-    // Respond to initialization with required fields
-    const response = {
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        protocolVersion: '2024-03-01', // Required field
-        serverInfo: { // Required field
-          name: 'iris-research-server',
-          version: '1.0.0'
-        },
-        capabilities: {}
+  server.tool(
+    "iris-research",
+    {
+      phoneNumber: z
+        .string()
+        .describe("Recipient's phone number in E.164 format"),
+      query: z.string().describe("User's query or research topic"),
+    },
+    async ({ phoneNumber, query }: ResearchParams) => {
+      try {
+        const result = await research({ phoneNumber, query });
+        return {
+          content: [{ type: "text", text: result.message }],
+        };
+      } catch (error: unknown) {
+        const err = error as Error;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: ${err.message || "Failed to process request"}`,
+            },
+          ],
+        };
       }
-    };
-    res.write(`data: ${JSON.stringify(response)}\n\n`);
-  }
-  else if (message.method === 'list_tools') {
-    // Tool discovery
-    const response = {
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        tools: [
-          {
-            id: "iris-research",
-            name: "Iris Research",
-            description: "Scrapes current news, generates a response, and places a phone call using Vapi.",
-            input_schema: {
-              type: "object",
-              required: ["phoneNumber", "query"],
-              properties: {
-                phoneNumber: { 
-                  type: "string", 
-                  description: "Recipient's phone number in E.164 format" 
-                },
-                query: { 
-                  type: "string", 
-                  description: "User's query or research topic" 
-                }
-              }
-            }
-          }
-        ]
-      }
-    };
-    
-    res.write(`data: ${JSON.stringify(response)}\n\n`);
-  } 
-  else if (message.method === 'call_tool' && message.params.tool_id === 'iris-research') {
-    // Tool execution
-    const params = message.params.params as ProcessParams;
-    const { phoneNumber, query } = params;
-    
-    if (!phoneNumber || !query) {
-      const errResponse = {
-        jsonrpc: '2.0',
-        id: message.id,
-        error: {
-          code: -32602,
-          message: 'Missing required parameters'
-        }
-      };
-      res.write(`data: ${JSON.stringify(errResponse)}\n\n`);
-      return;
     }
+  );
 
-    // Execute the tool asynchronously
-    process({ phoneNumber, query })
-      .then(result => {
-        const response = {
-          jsonrpc: '2.0',
-          id: message.id,
-          result
-        };
-        res.write(`data: ${JSON.stringify(response)}\n\n`);
-      })
-      .catch(err => {
-        console.error(err);
-        const errResponse = {
-          jsonrpc: '2.0',
-          id: message.id,
-          error: {
-            code: -32000,
-            message: err.message || 'Failed to process request',
-            data: err.error || 'Unknown error occurred'
-          }
-        };
-        res.write(`data: ${JSON.stringify(errResponse)}\n\n`);
-      });
-  }
-  else {
-    // Unknown method
-    const errResponse = {
-      jsonrpc: '2.0',
-      id: message.id,
-      error: {
-        code: -32601,
-        message: `Method not found: ${message.method}`
-      }
-    };
-    
-    res.write(`data: ${JSON.stringify(errResponse)}\n\n`);
-  }
+  return server;
 }
 
-// Shared SSE request handler for both GET and POST
-function handleSseRequest(req: Request, res: Response) {
-  // Set headers for SSE
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  
-  console.log('SSE request received:', req.method);
-  
-  // Send a heartbeat every 30s to keep the connection alive
-  const heartbeatInterval = setInterval(() => {
-    res.write('event: heartbeat\ndata: {}\n\n');
-  }, 30000);
-  
-  // Handle client disconnect
-  req.on('close', () => {
-    clearInterval(heartbeatInterval);
-    console.log('Client disconnected');
-  });
-
-  // If the request is a POST, we may already have the body parsed
-  if (req.method === 'POST' && req.body) {
-    try {
-      console.log('Processing POST body:', req.body);
-      handleMcpMessage(req.body, res);
-    } catch (err) {
-      console.error('Error processing POST body:', err);
-    }
-  }
-  
-  // For both GET and POST, listen for data events
-  req.on('data', (chunk) => {
-    try {
-      const data = chunk.toString();
-      if (!data) return;
-      
-      console.log('Data received:', data);
-      const message = JSON.parse(data);
-      handleMcpMessage(message, res);
-    } catch (err) {
-      console.error('Error processing chunk:', err);
-    }
-  });
-  
-  // Initial connection confirmation
-  console.log('Sending connection confirmation');
-  res.write('event: connected\ndata: {}\n\n');
-}
-
-// Support both GET and POST methods for the SSE endpoint
-app.get('/sse', (req: Request, res: Response) => {
-  handleSseRequest(req, res);
-});
-
-app.post('/sse', (req: Request, res: Response) => {
-  handleSseRequest(req, res);
-});
-
-// Keep your existing REST endpoints for backward compatibility
-app.get('/mcp/manifest', (_req: Request, res: Response) => {
-  res.json({
-    tools: [
-      {
-        id: "iris-research",
-        name: "Iris Research",
-        description: "Scrapes current news, generates a response, and places a phone call using Vapi.",
-        input: {
-          type: "object",
-          required: ["phoneNumber", "query"],
-          properties: {
-            phoneNumber: { type: "string", description: "Recipient's phone number in E.164 format" },
-            query: { type: "string", description: "User's query or research topic" }
-          }
-        },
-        output: {
-          type: "object",
-          properties: {
-            success: { type: "boolean" },
-            message: { type: "string" },
-            error: { type: "string" }
-          }
-        }
-      }
-    ]
-  });
-});
-
-app.post('/mcp/tools/iris-research', async (req: Request, res: Response) => {
-  const { phoneNumber, query } = req.body as ProcessParams;
-  if (!phoneNumber || !query) {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing required parameters',
-      error: !phoneNumber ? 'Missing "phoneNumber"' : 'Missing "query"'
-    });
-  }
+app.post("/mcp", async (req: Request, res: Response) => {
   try {
-    const result = await process({ phoneNumber, query });
-    res.status(200).json(result);
-  } catch (err: any) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      message: err.message || 'Failed to process request',
-      error: err.error || 'Unknown error occurred'
+    const server = getServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
     });
+
+    res.on("close", () => {
+      transport.close();
+      server.close();
+    });
+
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (error) {
+    console.error("MCP request error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: "Internal server error",
+        },
+        id: null,
+      });
+    }
   }
 });
 
-export const irisApi = app;
+// Optional: disallow GET and DELETE for /mcp
+app.get("/mcp", (_req, res) => {
+  res.status(405).json({
+    jsonrpc: "2.0",
+    error: {
+      code: -32000,
+      message: "Method not allowed.",
+    },
+    id: null,
+  });
+});
+
+app.delete("/mcp", (_req, res) => {
+  res.status(405).json({
+    jsonrpc: "2.0",
+    error: {
+      code: -32000,
+      message: "Method not allowed.",
+    },
+    id: null,
+  });
+});
+
+app.get("/healthz", (_req, res) => {
+  res.status(200).send("OK");
+});
+
+// Start server on Cloud Run-provided port
+const PORT = parseInt(process.env.PORT || "8080", 10);
+app.listen(PORT, () => {
+  console.log(`Iris Research MCP server running on port ${PORT}`);
+});

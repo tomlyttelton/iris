@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { WebSource as WebPage } from "./getContext";
+import { WebSource as WebPage } from "./getContext.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 

@@ -2,74 +2,100 @@
 
 ## 1. Product Overview
 
-Iris is a voice-based personal research assistant designed for the [MCP and A2A Hackathon](https://mcp-and-a2a-hackathon.devpost.com/). This event challenges participants to build multimodal AI agents capable of advanced reasoning and autonomous decision-making to solve complex, real-world enterprise challenges. Participants are encouraged to utilize at least three sponsor tools in their projects, with a total of \$19,500 in cash prizes available.
+Iris is a voice-based personal research assistant designed for the [MCP and A2A Hackathon](https://mcp-and-a2a-hackathon.devpost.com/). The hackathon challenges participants to build multimodal AI agents capable of advanced reasoning and autonomous decision-making. Iris supports two modes of interaction:
 
-Users interact with Iris via phone calls to request research, such as gathering different viewpoints on a news story. Iris processes the query, conducts research, summarizes findings, and calls the user back with results using VAPI’s voice AI platform.
+- **Inbound**: Users call a dedicated Vapi number. Vapi transcribes the query and forwards it via MCP to Iris, which responds with a voice-ready answer.
+- **Outbound**: An MCP-compatible request is sent to Iris with a phone number and research query. Iris gathers the information and initiates a callback to the user via Vapi.
+
+In both flows, Iris processes the query, conducts research using real-time news data, summarizes findings using LLMs, and delivers results by voice through Vapi.
 
 ## 2. Key Features
 
-* **Voice-Based Query Submission**: Users call Iris and verbally state their research query (e.g., “What are different viewpoints on \[news topic]?”).
-* **Automated Research**: Iris performs web searches or API calls to collect information, emphasizing diverse perspectives.
-* **Intelligent Summarization**: An AI model generates a concise summary of the research findings.
-* **Callback with Results**: Iris initiates an outbound call to deliver the summary using a VAPI transient assistant.
-* **Interactive Follow-up**: Users can ask follow-up questions during the callback, with responses based on the research data.
+- **Voice-Based Query Submission (Inbound)**: Users call Iris, Vapi transcribes the audio and forwards the structured query.
+- **Programmatic Query Submission (Outbound)**: MCP agents can call Iris via HTTP with a phone number and query.
+- **Automated Research**: Iris performs web scraping and API calls (e.g., Apify) to gather diverse viewpoints.
+- **Intelligent Summarization**: A language model creates a concise, coherent summary.
+- **Voice Delivery via Vapi**:
+
+  - Inbound: response is read back in-call.
+  - Outbound: Iris initiates a call with a Vapi transient assistant.
 
 ## 3. Technical Requirements
 
 ### 3.1 VAPI Integration
 
-* **Inbound Calls**: Handle user queries using VAPI’s inbound call API.
-* **Outbound Calls**: Use VAPI’s outbound call feature with transient assistants.
-* **Transient Assistant Configuration**:
+- **Inbound Calls**: Vapi transcribes the user query and sends a structured MCP request to Iris.
+- **Outbound Calls**: Iris sends a request to Vapi's outbound API, using a transient assistant.
+- **Transient Assistant Configuration**:
 
-  * First message: Summary composed by an LLM.
-  * System message: Full research output for answering follow-up questions.
+  - **First Message**: Summary composed by an LLM.
+  - **System Message**: Full research output, available for answering follow-ups.
 
 ### 3.2 Natural Language Understanding (NLU)
 
-* Transcribe and interpret user queries using VAPI’s capabilities or an external NLU service.
-* Identify the research scope, such as news analysis or general information.
+- Transcription and interpretation of voice via Vapi.
+- Identification of research intent and query scope.
 
 ### 3.3 Research Automation
 
-* Integrate with search engines (e.g., Google Custom Search) or news APIs to gather diverse sources.
-* Prioritize collecting multiple viewpoints for balanced research, especially for news topics.
+- Integration with news APIs or search scrapers (e.g., Apify).
+- Prioritization of multiple viewpoints for balance.
 
 ### 3.4 Summarization
 
-* Use a large language model (e.g., OpenAI API) to create concise, coherent summaries of the research findings.
+- Usage of LLMs (e.g., Groq/OpenAI) for concise spoken summaries.
 
 ### 3.5 Vendor Pricing
 
-* **VAPI**: Offers a startup program that includes \$1,000 in cash prizes and entry into their startups program. Pricing details can be found on the [VAPI website](https://vapi.ai/).
-* **Google Custom Search**: Provides 100 free searches per day. Beyond that, pricing is \$5 per 1,000 queries. More information is available on the [Google Custom Search pricing page](https://developers.google.com/custom-search/v1/overview).
-* **OpenAI API**: Pricing varies based on the model used. For example, GPT-4 is priced at \$0.03 per 1,000 tokens for prompts and \$0.06 per 1,000 tokens for completions. Detailed pricing can be found on the [OpenAI pricing page](https://openai.com/pricing).
+- **VAPI**: Offers \$1,000 in startup credits and access to their program.
+- **Apify**: Pricing based on actor runs; many community actors are free for light usage.
+- **Groq/OpenAI**: Based on token volume; GPT-4 or Groq mix depending on use.
 
 ## 4. Development Considerations
 
-* **Scope**: Focus on a single query type, such as “different viewpoints on a news topic,” to ensure completion within 2 hours.
-* **Simplicity**: Leverage existing APIs (VAPI, search engines, LLMs) to minimize custom development.
-* **Testing**: Test with sample queries, like “What are different viewpoints on a recent news event?” to verify functionality.
+- **Scope**: Focused on single-turn queries like "What are different viewpoints on X?"
+- **Simplicity**: Reuse mature APIs to minimize custom development.
+- **Testing**: Use static test queries and mock voice calls.
 
 ## 5. Alignment with Hackathon Goals
 
-Iris aligns with the MCP and A2A Hackathon’s emphasis on sophisticated AI agents by integrating VAPI for voice interaction, automating research with external APIs, and providing interactive, voice-based responses. Its innovative approach to hands-free research makes it a strong contender.
+Iris demonstrates the power of MCP as an integration layer and A2A as a voice interface. It combines multiple sponsor tools and fulfills the multimodal AI agent concept by:
+
+- Understanding voice input
+- Performing real-time web research
+- Generating synthesized responses
+- Delivering results via voice
 
 ## 6. Workflow
 
-1. User calls Iris’s phone number.
-2. VAPI transcribes and sends the query to the system.
-3. System interprets the query and conducts research using web searches or APIs.
-4. System summarizes findings using an LLM.
-5. System creates a transient assistant with the summary as the first message and research data in the system message.
-6. VAPI initiates an outbound call to the user.
-7. Assistant delivers the summary and responds to follow-up questions based on the research data.
+### Inbound Voice Flow:
+
+1. User calls Iris via Vapi number.
+2. Vapi transcribes the voice input.
+3. Vapi sends an MCP request to `/mcp`.
+4. Iris processes the query, gathers and summarizes information.
+5. Iris responds via MCP.
+6. Vapi reads the response aloud to the user.
+
+### Outbound Voice Flow:
+
+1. An HTTP MCP request is made to Iris with a query and phone number.
+2. Iris gathers and summarizes the information.
+3. Iris configures a Vapi transient assistant.
+4. Iris uses the Vapi API to place a call.
+5. The assistant reads the summary aloud to the recipient.
 
 ## 7. Why Iris Stands Out
 
-Iris offers a unique, hands-free research experience through voice interaction, delivering balanced summaries of diverse viewpoints. This is particularly valuable for users seeking unbiased information without screen-based interfaces, making it ideal for busy professionals or those on the go.
+Iris provides a screen-free, hands-free research experience — ideal for professionals, drivers, or accessibility users. Its use of voice-first delivery, backed by structured APIs and real-time data, makes it uniquely practical.
 
 ## 8. Competitive Advantage
 
-By combining voice-based interaction with automated research and interactive follow-ups, Iris addresses the need for accessible, unbiased information retrieval. Its simplicity and focus on a niche use case (news viewpoint analysis) make it a compelling entry for the hackathon.
+By combining:
 
+- **Voice-first UX**
+- **Autonomous agent orchestration via MCP**
+- **Balanced news and viewpoint analysis**
+- **LLM-driven summarization**
+
+Iris is a compelling entry in the hackathon, showcasing the interoperability and modularity of AI agents working together.

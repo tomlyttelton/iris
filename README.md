@@ -1,6 +1,6 @@
-# Iris Research (MCP Cloud Function)
+# Iris Research (MCP on Cloud Run)
 
-**Iris Research** is a serverless AI assistant hosted on Google Cloud Functions. It accepts a phone number, scrapes real-time news using Apify, generates a spoken prompt using a custom LLM prompt, and places an outbound call using Vapi to relay the result — all through a single MCP-compatible endpoint.
+**Iris Research** is a stateless AI assistant hosted on **Google Cloud Run**. It accepts a phone number, scrapes real-time news using Apify, generates a voice-ready prompt using a custom LLM flow, and places an outbound call using Vapi — all through a single MCP-compatible HTTP endpoint.
 
 ---
 
@@ -8,22 +8,28 @@
 
 This is a single MCP tool named `iris-research` that:
 
-1. Accepts a phone number as input.
-2. Scrapes technology news headlines using Apify.
-3. Generates a voice-ready summary using a language model.
-4. Calls the user back with the generated message using Vapi.
+1. Accepts a phone number and research query.
+2. Scrapes relevant news using Apify.
+3. Generates a summarized spoken response using a language model.
+4. Places a call to the number using Vapi and reads the result aloud.
 
 ---
 
 ## 🌐 MCP Tool
 
-### `POST /mcp/tools/iris-research`
+### `POST /mcp`
 
 **Request:**
 
 ```json
 {
-  "phoneNumber": "+14155550123"
+  "jsonrpc": "2.0",
+  "method": "iris-research",
+  "params": {
+    "phoneNumber": "+14155550123",
+    "query": "latest cybersecurity news"
+  },
+  "id": 1
 }
 ```
 
@@ -31,32 +37,59 @@ This is a single MCP tool named `iris-research` that:
 
 ```json
 {
-  "output": "Call placed"
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Call placed to +14155550123 with a summary of the latest cybersecurity news."
+      }
+    ]
+  },
+  "id": 1
 }
 ```
 
-This endpoint can be called by Vapi, another MCP agent, or any system that speaks HTTP and JSON.
+This endpoint is fully MCP-compatible and can be called by another MCP agent, Vapi, or any HTTP/JSON system.
 
 ---
 
-## ☁️ Deploying to Google Cloud Functions
+## ☁️ Deploying to Google Cloud Run
 
 ### 1. Prerequisites
 
-- Node.js 18+
-- GCP project with Cloud Functions (2nd Gen) enabled
-- `gcloud` CLI installed and configured
+- Node.js 18+ (locally)
+- GCP project with Cloud Run enabled
+- Docker & `gcloud` CLI installed and authenticated
 
-### 2. Deploy
+### 2. Build & Deploy
 
 ```bash
-gcloud functions deploy iris-research   --gen2   --runtime=nodejs20   --region=us-central1   --source=.   --entry-point=app   --trigger-http   --allow-unauthenticated
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/iris-research
+
+gcloud run deploy iris-research \
+  --image gcr.io/YOUR_PROJECT_ID/iris-research \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
 ```
+
+> Replace `YOUR_PROJECT_ID` with your actual GCP project ID.
 
 ### 3. Test
 
 ```bash
-curl -X POST https://REGION-PROJECT.cloudfunctions.net/iris-research/mcp/tools/iris-research   -H "Content-Type: application/json"   -d '{"phoneNumber": "+14155550123"}'
+curl -X POST https://YOUR_RUN_URL/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "iris-research",
+    "params": {
+      "phoneNumber": "+14155550123",
+      "query": "latest AI news"
+    },
+    "id": 1
+  }'
 ```
 
 ---
@@ -66,19 +99,22 @@ curl -X POST https://REGION-PROJECT.cloudfunctions.net/iris-research/mcp/tools/i
 ```
 iris-research/
 ├── src/
-│   ├── index.ts             # Main handler with single MCP tool
+│   ├── index.ts             # Express server with stateless MCP endpoint
+│   ├── research.ts          # Handles orchestration of scraping, prompting, and calling
 │   ├── getNewsData.ts       # Apify integration
-│   ├── generatePrompt.ts    # Prompt generator
-│   └── makeOutboundCall.ts  # Vapi call trigger
+│   ├── generatePrompt.ts    # LLM prompt creation
+│   └── makeOutboundCall.ts  # Vapi outbound call integration
 ├── package.json
-└── tsconfig.json
+├── tsconfig.json
+├── Dockerfile
+└── .dockerignore
 ```
 
 ---
 
 ## 🔐 Environment Variables
 
-For testing locally create a `.env` file or configure the following:
+For local testing, create a `.env` file or set the following:
 
 ```env
 APIFY_API_TOKEN=...
@@ -89,13 +125,29 @@ PHONE_NUMBER=...
 
 ---
 
+## ⚙️ Tech Stack
+
+- TypeScript
+- Node.js 20+ (ESM + `.js` imports)
+- MCP SDK
+- Apify
+- Groq or OpenAI
+- Vapi
+- Google Cloud Run
+
+---
+
 ## 👥 Contributors
 
-- Tom Lyttelton – Creator & Engineer
 - Shapor Naghibzadeh
+- Tom Lyttelton
 
 ---
 
 ## 📄 License
 
 MIT License
+
+```
+
+```

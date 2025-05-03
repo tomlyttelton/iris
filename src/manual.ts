@@ -1,7 +1,7 @@
 import "dotenv/config";
-import { generateDigest } from "./generateDigest";
-import { getContext } from "./getContext";
-import { makeOutboundCall } from "./makeOutboundCall";
+import { generateDigest } from "./generateDigest.js";
+import { getContext } from "./getContext.js";
+import { makeOutboundCall } from "./makeOutboundCall.js";
 
 async function main() {
   const phoneNumber = process.env.PHONE_NUMBER;
