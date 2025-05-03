@@ -43,22 +43,22 @@ function getServer(): McpServer {
       phoneNumber: string;
       query: string;
     }) => {
-      try {
-        const result = await research(name, phoneNumber, query);
-        return {
-          content: [{ type: "text", text: result.message }],
-        };
-      } catch (error: unknown) {
-        const err = error as Error;
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${err.message || "Failed to process request"}`,
-            },
-          ],
-        };
-      }
+      research(name, phoneNumber, query)
+        .then(() => {
+          console.log(`Research and call for ${name} completed.`);
+        })
+        .catch((err) => {
+          console.error(`Error during research for ${name}:`, err);
+        });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Got it. I'll call ${name} at ${phoneNumber} about "${query}" shortly.`,
+          },
+        ],
+      };
     }
   );
 
