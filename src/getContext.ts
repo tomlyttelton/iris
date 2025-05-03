@@ -17,6 +17,36 @@ export interface WebSource {
   /** Main content of the web page */
   content: string;
 }
+/**
+ * Represents the structure of a Google search API response
+ * @interface GoogleSearchResult
+ */
+export interface GoogleSearchResult {
+  /** Array of organic search results */
+  organicResults: {
+    /** Title of the search result */
+    title: string;
+    /** URL of the search result */
+    url: string;
+    /** Optional text snippet from the search result */
+    snippet?: string;
+    /** Optional position/ranking in search results */
+    position?: number;
+  }[];
+}
+
+/**
+ * Represents a web page after scraping
+ * @interface ScrapedPage
+ */
+interface ScrapedPage {
+  /** Title of the scraped page */
+  title: string;
+  /** URL where the page was scraped from */
+  url: string;
+  /** Main content extracted from the page */
+  content: string;
+}
 
 /**
  * Gathers web context for a given query using Apify's web scraping capabilities.
@@ -39,10 +69,12 @@ export async function getContext(query: string): Promise<WebSource[]> {
       maxPagesPerQuery: 1,
     });
 
-  const searchResults = await client.dataset(searchDatasetId).listItems();
+  const searchResults = await client
+    .dataset<GoogleSearchResult>(searchDatasetId)
+    .listItems();
   const startUrls = searchResults.items
-    .flatMap((item: any) => item.organicResults || [])
-    .map((result: any) => ({ url: result.url }))
+    .flatMap((item) => item.organicResults || [])
+    .map((result) => ({ url: result.url }))
     .filter((item) => typeof item.url === "string")
     .slice(0, 10);
 
@@ -93,7 +125,7 @@ export async function getContext(query: string): Promise<WebSource[]> {
     `,
     });
 
-  const { items } = await client.dataset(datasetId).listItems();
+  const { items } = await client.dataset<ScrapedPage>(datasetId).listItems();
 
   const sources: WebSource[] = items
     .filter(
