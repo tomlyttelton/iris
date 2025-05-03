@@ -2,19 +2,15 @@ import { generateDigest } from "./generateDigest.js";
 import { getContext } from "./getContext.js";
 import { makeOutboundCall } from "./makeOutboundCall.js";
 
-export interface ResearchParams {
-  phoneNumber: string;
-  query: string;
-}
-
-export async function research({
-  phoneNumber,
-  query,
-}: ResearchParams): Promise<{ success: boolean; message: string }> {
+export async function research(
+  name: string,
+  phoneNumber: string,
+  query: string
+): Promise<{ success: boolean; message: string }> {
   try {
     const news = await getContext(query);
     const digest = await generateDigest(query, news);
-    await makeOutboundCall(phoneNumber, digest);
+    await makeOutboundCall(name, phoneNumber, query, digest);
     return {
       success: true,
       message: "Call placed successfully",

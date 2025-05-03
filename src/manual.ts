@@ -14,7 +14,7 @@ async function main() {
   console.log(news);
   const digest = await generateDigest(query, news);
   console.log(digest);
-  await makeOutboundCall(phoneNumber, digest);
+  await makeOutboundCall("Shapor", phoneNumber, query, digest);
 }
 
 main().catch(console.error);

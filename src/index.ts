@@ -4,7 +4,7 @@ import cors from "cors";
 import "dotenv/config";
 import express, { Request, Response } from "express";
 import { z } from "zod";
-import { research, ResearchParams } from "./research.js";
+import { research } from "./research.js";
 
 const app = express();
 app.use(express.json());
@@ -19,14 +19,23 @@ function getServer(): McpServer {
   server.tool(
     "iris-research",
     {
+      name: z.string().describe("Name of the recipient"),
       phoneNumber: z
         .string()
         .describe("Recipient's phone number in E.164 format"),
       query: z.string().describe("User's query or research topic"),
     },
-    async ({ phoneNumber, query }: ResearchParams) => {
+    async ({
+      name,
+      phoneNumber,
+      query,
+    }: {
+      name: string;
+      phoneNumber: string;
+      query: string;
+    }) => {
       try {
-        const result = await research({ phoneNumber, query });
+        const result = await research(name, phoneNumber, query);
         return {
           content: [{ type: "text", text: result.message }],
         };
