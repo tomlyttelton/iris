@@ -1,10 +1,10 @@
-import { OpenAI } from 'openai';
+import Groq from 'groq-sdk';
 import { NewsArticle } from './getNewsData';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function generateDigest(query: string, articles: NewsArticle[]): Promise<string> {
-  // Limit number of articles and truncate each article's content to reduce token usage
+  // Truncate articles to limit token usage
   const truncatedArticles = articles.slice(0, 5).map(a => {
     const safeContent = a.content.slice(0, 300).replace(/\n/g, ' ').trim();
     return `- ${a.title} - ${a.url}: "${safeContent}"`;
@@ -19,14 +19,19 @@ ${truncatedArticles.join('\n')}
 Write a short 3-sentence digest of the most relevant stories.
   `.trim();
 
-  const res = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [{ role: 'user', content: prompt }],
-  });
+  try {
+    const res = await groq.chat.completions.create({
+      model: 'mixtral-8x7b-32768', // Or 'llama3-70b-8192'
+      messages: [{ role: 'user', content: prompt }],
+    });
 
-  if (!res.choices || res.choices.length === 0) {
-    throw new Error('No response from OpenAI');
+    if (!res.choices || res.choices.length === 0) {
+      throw new Error('No response from Groq');
+    }
+
+    return res.choices[0].message.content ?? 'No summary available.';
+  } catch (err) {
+    console.error('Groq error:', err);
+    return 'Digest generation failed.';
   }
-
-  return res.choices[0].message.content ?? 'No summary available.';
 }

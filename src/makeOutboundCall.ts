@@ -2,6 +2,7 @@ import axios from 'axios';
 
 export async function makeOutboundCall(
   phoneNumber: string,
+  digest?: string
 ): Promise<void> {
   await axios.post(
     'https://api.vapi.ai/call',
@@ -11,6 +12,11 @@ export async function makeOutboundCall(
       customer: {
         number: phoneNumber,
       },
+      agent: digest ? {
+        variables: {
+          digest: digest,
+        },
+      } : undefined,
     },
     {
       headers: {

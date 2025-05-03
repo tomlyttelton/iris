@@ -12,8 +12,7 @@ export async function process({ phoneNumber, query }: ProcessParams): Promise<{ 
   try {
     const news = await getNewsData(query);
     const digest = await generateDigest(query, news);
-    console.log(digest);
-    await makeOutboundCall(phoneNumber /*data*/);
+    await makeOutboundCall(phoneNumber, digest);
     return {
       success: true,
       message: 'Call placed successfully'
