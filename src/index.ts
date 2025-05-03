@@ -25,7 +25,7 @@ const transports: Record<
  * @param {Response} res - Express response object
  */
 app.post("/mcp", async (req: Request, res: Response) => {
-  console.log("Received POST request to /mcp");
+  console.log("Received POST request to /mcp", req.body);
   try {
     const server = IrisMcpServer.getInstance();
     const transport = new StreamableHTTPServerTransport({
@@ -37,7 +37,6 @@ app.post("/mcp", async (req: Request, res: Response) => {
 
     res.on("close", () => {
       transport.close();
-      server.close();
       delete transports[sessionId];
     });
 
@@ -59,16 +58,21 @@ app.post("/mcp", async (req: Request, res: Response) => {
 });
 
 /**
- * Handles GET requests to /mcp endpoint (not allowed)
+ * Handles GET requests to /mcp endpoint assuming older SSE transport.
  * @param {Request} _req - Express request object
  * @param {Response} res - Express response object
  */
-app.get("/mcp", (_req, res) => {
-  res.status(405).json({
-    jsonrpc: "2.0",
-    error: { code: -32000, message: "Method not allowed." },
-    id: null,
+app.get("/mcp", async (_req: Request, res: Response) => {
+  console.log("Received GET request to /mcp (deprecated SSE transport)");
+  const transport = new SSEServerTransport("/messages", res);
+  transports[transport.sessionId] = transport;
+
+  res.on("close", () => {
+    delete transports[transport.sessionId];
   });
+
+  const server = IrisMcpServer.getInstance();
+  await server.connect(transport);
 });
 
 /**
@@ -84,26 +88,8 @@ app.delete("/mcp", (_req, res) => {
   });
 });
 
-/**
- * Handles GET requests to /sse endpoint (deprecated SSE transport)
- * @param {Request} _req - Express request object
- * @param {Response} res - Express response object
- */
-app.get("/sse", async (_req: Request, res: Response) => {
-  console.log("Received GET request to /sse (deprecated SSE transport)");
-  const transport = new SSEServerTransport("/messages", res);
-  transports[transport.sessionId] = transport;
-
-  res.on("close", () => {
-    delete transports[transport.sessionId];
-  });
-
-  const server = IrisMcpServer.getInstance();
-  await server.connect(transport);
-});
-
 app.post("/messages", async (req: Request, res: Response) => {
-  console.log("Received POST request to /messages");
+  console.log("Received POST request to /messages", req.body);
   const sessionId = req.query.sessionId as string;
   const existingTransport = transports[sessionId];
 
@@ -146,5 +132,6 @@ process.on("SIGINT", async () => {
     }
     delete transports[sessionId];
   }
+  IrisMcpServer.getInstance().close();
   process.exit(0);
 });
