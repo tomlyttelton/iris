@@ -21,7 +21,7 @@ Write a short 3-sentence digest of the most relevant stories.
 
   try {
     const res = await groq.chat.completions.create({
-      model: 'mixtral-8x7b-32768', // Or 'llama3-70b-8192'
+      model: 'llama-3.1-8b-instant', // Or 'llama3-70b-8192'
       messages: [{ role: 'user', content: prompt }],
     });
 

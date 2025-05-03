@@ -10,9 +10,10 @@ async function main() {
   if (!phoneNumber) {
     throw new Error("PHONE_NUMBER environment variable is required.");
   }
-  const news = await getNewsData(query);
-  const digest = await generateDigest(query, news);
-  // await makeOutboundCall(phoneNumber, digest);
+  // const news = await getNewsData(query);
+  // const digest = await generateDigest(query, news);
+  // console.log(digest);
+  await makeOutboundCall(phoneNumber);
 }
 
 main().catch(console.error);
