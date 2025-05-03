@@ -20,6 +20,7 @@ This is a single MCP tool named `iris-research` that:
 ### `POST /mcp/tools/iris-research`
 
 **Request:**
+
 ```json
 {
   "phoneNumber": "+14155550123"
@@ -27,6 +28,7 @@ This is a single MCP tool named `iris-research` that:
 ```
 
 **Response:**
+
 ```json
 {
   "output": "Call placed"
@@ -76,10 +78,13 @@ iris-research/
 
 ## 🔐 Environment Variables
 
-Create a `.env` file or configure the following:
+For testing locally create a `.env` file or configure the following:
 
 ```env
-VAPI_API_KEY=your_vapi_api_key
+APIFY_API_TOKEN=...
+VAPI_API_KEY=...
+GROQ_API_KEY=...
+PHONE_NUMBER=...
 ```
 
 ---

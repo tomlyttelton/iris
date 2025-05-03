@@ -1,35 +1,39 @@
-import { ApifyClient } from 'apify-client';
+import { ApifyClient } from "apify-client";
 
-export interface NewsArticle {
+export interface WebSource {
   title: string;
   url: string;
   content: string;
 }
 
-export async function getNewsData(query = 'latest news'): Promise<NewsArticle[]> {
+export async function getContext(query: string): Promise<WebSource[]> {
   const client = new ApifyClient({
     token: process.env.APIFY_API_TOKEN!,
   });
 
   // Step 1: Use Google Search
-  const { defaultDatasetId: searchDatasetId } = await client.actor('apify/google-search-scraper').call({
-    queries: query,
-    resultsPerPage: 10,
-    maxPagesPerQuery: 1,
-  });
+  const { defaultDatasetId: searchDatasetId } = await client
+    .actor("apify/google-search-scraper")
+    .call({
+      queries: query,
+      resultsPerPage: 10,
+      maxPagesPerQuery: 1,
+    });
 
   const searchResults = await client.dataset(searchDatasetId).listItems();
   const startUrls = searchResults.items
     .flatMap((item: any) => item.organicResults || [])
     .map((result: any) => ({ url: result.url }))
-    .filter((item) => typeof item.url === 'string')
+    .filter((item) => typeof item.url === "string")
     .slice(0, 10);
 
   // Step 2: Scrape articles
-  const { defaultDatasetId: datasetId } = await client.actor('apify/cheerio-scraper').call({
-    startUrls,
-    maxConcurrency: 10,
-    pageFunction: `
+  const { defaultDatasetId: datasetId } = await client
+    .actor("apify/cheerio-scraper")
+    .call({
+      startUrls,
+      maxConcurrency: 10,
+      pageFunction: `
       async function ({ request, $ }) {
         const h1 = $('h1').first().text().trim();
         const titleTag = $('title').text().trim();
@@ -68,24 +72,25 @@ export async function getNewsData(query = 'latest news'): Promise<NewsArticle[]>
           : null;
       }
     `,
-  });
+    });
 
   const { items } = await client.dataset(datasetId).listItems();
 
-  const articles: NewsArticle[] = items
-    .filter((item: any): item is NewsArticle =>
-      typeof item?.title === 'string' &&
-      typeof item?.url === 'string' &&
-      typeof item?.content === 'string'
+  const sources: WebSource[] = items
+    .filter(
+      (item: any): item is WebSource =>
+        typeof item?.title === "string" &&
+        typeof item?.url === "string" &&
+        typeof item?.content === "string"
     )
-    .reduce<NewsArticle[]>((acc, article) => {
-      const newsArticle = article as unknown as NewsArticle;
-      if (!acc.find((a) => a.title === newsArticle.title)) {
-        acc.push(newsArticle);
+    .reduce<WebSource[]>((acc, source) => {
+      const webSource = source as unknown as WebSource;
+      if (!acc.find((a) => a.title === webSource.title)) {
+        acc.push(webSource);
       }
       return acc;
     }, [])
     .slice(0, 50);
 
-  return articles;
+  return sources;
 }

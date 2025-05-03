@@ -1,16 +1,14 @@
-import 'dotenv/config';
-import { makeOutboundCall } from './makeOutboundCall';
-import { generateDigest } from './generateDigest';
-import { getNewsData } from './getNewsData';
+import "dotenv/config";
 
 async function main() {
   const phoneNumber = process.env.PHONE_NUMBER;
-  const query = process.env.QUERY || "Tell me what's happening in tech today";
+  const query = process.env.QUERY || "NPR funding cuts";
 
   if (!phoneNumber) {
     throw new Error("PHONE_NUMBER environment variable is required.");
   }
-  // const news = await getNewsData(query);
+  // const news = await getContext(query);
+  // console.log(news);
   // const digest = await generateDigest(query, news);
   // console.log(digest);
   await makeOutboundCall(phoneNumber);
