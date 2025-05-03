@@ -1,3 +1,8 @@
+/**
+ * Main entry point for the Iris Research MCP server.
+ * This module sets up an Express server with MCP protocol support for research queries.
+ */
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import cors from "cors";
@@ -10,6 +15,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+/**
+ * Creates and configures an MCP server instance with the research tool.
+ * @returns {McpServer} Configured MCP server instance
+ */
 function getServer(): McpServer {
   const server = new McpServer({
     name: "iris-research-server",
@@ -56,6 +65,11 @@ function getServer(): McpServer {
   return server;
 }
 
+/**
+ * Handles MCP protocol requests
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
 app.post("/mcp", async (req: Request, res: Response) => {
   try {
     const server = getServer();
@@ -85,7 +99,11 @@ app.post("/mcp", async (req: Request, res: Response) => {
   }
 });
 
-// Optional: disallow GET and DELETE for /mcp
+/**
+ * Handles GET requests to /mcp endpoint (not allowed)
+ * @param {Request} _req - Express request object
+ * @param {Response} res - Express response object
+ */
 app.get("/mcp", (_req, res) => {
   res.status(405).json({
     jsonrpc: "2.0",
@@ -97,6 +115,11 @@ app.get("/mcp", (_req, res) => {
   });
 });
 
+/**
+ * Handles DELETE requests to /mcp endpoint (not allowed)
+ * @param {Request} _req - Express request object
+ * @param {Response} res - Express response object
+ */
 app.delete("/mcp", (_req, res) => {
   res.status(405).json({
     jsonrpc: "2.0",
@@ -108,6 +131,11 @@ app.delete("/mcp", (_req, res) => {
   });
 });
 
+/**
+ * Health check endpoint
+ * @param {Request} _req - Express request object
+ * @param {Response} res - Express response object
+ */
 app.get("/healthz", (_req, res) => {
   res.status(200).send("OK");
 });

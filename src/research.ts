@@ -1,7 +1,21 @@
+/**
+ * Research module for processing user queries and making outbound calls.
+ * This module coordinates the research process by gathering context, generating digests,
+ * and initiating outbound calls.
+ */
+
 import { generateDigest } from "./generateDigest.js";
 import { getContext } from "./getContext.js";
 import { makeOutboundCall } from "./makeOutboundCall.js";
 
+/**
+ * Processes a research query by gathering context, generating a digest, and making an outbound call.
+ * @param {string} name - Name of the recipient
+ * @param {string} phoneNumber - Recipient's phone number in E.164 format
+ * @param {string} query - User's research query or topic
+ * @returns {Promise<{success: boolean, message: string}>} Result of the research process
+ * @throws {Error} If any step in the research process fails
+ */
 export async function research(
   name: string,
   phoneNumber: string,

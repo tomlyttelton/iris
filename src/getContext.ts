@@ -1,11 +1,30 @@
+/**
+ * Context gathering module for research queries.
+ * This module uses Apify to scrape web content based on user queries.
+ */
+
 import { ApifyClient } from "apify-client";
 
+/**
+ * Represents a web source with its content and metadata
+ * @interface WebSource
+ */
 export interface WebSource {
+  /** Title of the web page */
   title: string;
+  /** URL of the web page */
   url: string;
+  /** Main content of the web page */
   content: string;
 }
 
+/**
+ * Gathers web context for a given query using Apify's web scraping capabilities.
+ * First performs a Google search, then scrapes the resulting pages for content.
+ * @param {string} query - The search query to gather context for
+ * @returns {Promise<WebSource[]>} Array of web sources with their content
+ * @throws {Error} If the Apify API calls fail or if no valid sources are found
+ */
 export async function getContext(query: string): Promise<WebSource[]> {
   const client = new ApifyClient({
     token: process.env.APIFY_API_TOKEN!,
