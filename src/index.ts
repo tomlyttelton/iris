@@ -3,76 +3,21 @@
  * This module sets up an Express server with MCP protocol support for research queries.
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import cors from "cors";
 import "dotenv/config";
 import express, { Request, Response } from "express";
-import { z } from "zod";
-import { research } from "./research.js";
+import { IrisMcpServer } from "./irisResearch.js";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-/**
- * Creates and configures an MCP server instance with the research tool.
- * @returns {McpServer} Configured MCP server instance
- */
-function getServer(): McpServer {
-  const server = new McpServer({
-    name: "iris-research-server",
-    version: "1.0.0",
-  });
+app.post("/mcp", async (req, res) => {
+  const body = normalizeToJsonRpc(req.body);
 
-  server.tool(
-    "iris-research",
-    {
-      name: z.string().describe("Name of the recipient"),
-      phoneNumber: z
-        .string()
-        .describe("Recipient's phone number in E.164 format"),
-      query: z.string().describe("User's query or research topic"),
-    },
-    async ({
-      name,
-      phoneNumber,
-      query,
-    }: {
-      name: string;
-      phoneNumber: string;
-      query: string;
-    }) => {
-      research(name, phoneNumber, query)
-        .then(() => {
-          console.log(`Research and call for ${name} completed.`);
-        })
-        .catch((err) => {
-          console.error(`Error during research for ${name}:`, err);
-        });
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Got it. I'll call ${name} at ${phoneNumber} about "${query}" shortly.`,
-          },
-        ],
-      };
-    }
-  );
-
-  return server;
-}
-
-/**
- * Handles MCP protocol requests
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
- */
-app.post("/mcp", async (req: Request, res: Response) => {
   try {
-    const server = getServer();
+    const server = IrisMcpServer.getInstance();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
@@ -83,7 +28,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
     });
 
     await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+    await transport.handleRequest(req, res, body);
   } catch (error) {
     console.error("MCP request error:", error);
     if (!res.headersSent) {
@@ -145,3 +90,29 @@ const PORT = parseInt(process.env.PORT || "8080", 10);
 app.listen(PORT, () => {
   console.log(`Iris Research MCP server running on port ${PORT}`);
 });
+
+/**
+ * Nasty shim to normalize the request body to JSON-RPC format for Vapi.
+ *
+ * @param {Object} body - The request body
+ * @returns {Object} The normalized request body
+ */
+function normalizeToJsonRpc(body?: {
+  jsonrpc: string;
+  method: string;
+  name?: string;
+  phoneNumber?: string;
+  query?: string;
+}) {
+  if (body?.jsonrpc === "2.0" && typeof body?.method === "string") {
+    return body;
+  }
+
+  const { name, phoneNumber, query } = body ?? {};
+  return {
+    jsonrpc: "2.0",
+    id: "vapi-fallback",
+    method: "iris-research",
+    params: { name, phoneNumber, query },
+  };
+}
