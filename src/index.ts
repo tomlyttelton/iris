@@ -3,6 +3,7 @@
  * This module sets up an Express server with MCP protocol support for research queries.
  */
 
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import cors from "cors";
 import "dotenv/config";
@@ -13,22 +14,35 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-app.post("/mcp", async (req, res) => {
-  const body = normalizeToJsonRpc(req.body);
+const transports: Record<
+  string,
+  StreamableHTTPServerTransport | SSEServerTransport
+> = {};
 
+/**
+ * Handles POST requests to /mcp endpoint
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+app.post("/mcp", async (req: Request, res: Response) => {
+  console.log("Received POST request to /mcp");
   try {
     const server = IrisMcpServer.getInstance();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
 
+    const sessionId = transport.sessionId!;
+    transports[sessionId] = transport;
+
     res.on("close", () => {
       transport.close();
       server.close();
+      delete transports[sessionId];
     });
 
     await server.connect(transport);
-    await transport.handleRequest(req, res, body);
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
     console.error("MCP request error:", error);
     if (!res.headersSent) {
@@ -52,10 +66,7 @@ app.post("/mcp", async (req, res) => {
 app.get("/mcp", (_req, res) => {
   res.status(405).json({
     jsonrpc: "2.0",
-    error: {
-      code: -32000,
-      message: "Method not allowed.",
-    },
+    error: { code: -32000, message: "Method not allowed." },
     id: null,
   });
 });
@@ -68,12 +79,46 @@ app.get("/mcp", (_req, res) => {
 app.delete("/mcp", (_req, res) => {
   res.status(405).json({
     jsonrpc: "2.0",
-    error: {
-      code: -32000,
-      message: "Method not allowed.",
-    },
+    error: { code: -32000, message: "Method not allowed." },
     id: null,
   });
+});
+
+/**
+ * Handles GET requests to /sse endpoint (deprecated SSE transport)
+ * @param {Request} _req - Express request object
+ * @param {Response} res - Express response object
+ */
+app.get("/sse", async (_req: Request, res: Response) => {
+  console.log("Received GET request to /sse (deprecated SSE transport)");
+  const transport = new SSEServerTransport("/messages", res);
+  transports[transport.sessionId] = transport;
+
+  res.on("close", () => {
+    delete transports[transport.sessionId];
+  });
+
+  const server = IrisMcpServer.getInstance();
+  await server.connect(transport);
+});
+
+app.post("/messages", async (req: Request, res: Response) => {
+  console.log("Received POST request to /messages");
+  const sessionId = req.query.sessionId as string;
+  const existingTransport = transports[sessionId];
+
+  if (existingTransport instanceof SSEServerTransport) {
+    await existingTransport.handlePostMessage(req, res, req.body);
+  } else {
+    res.status(400).json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32000,
+        message: "Bad Request: Session ID invalid or uses different protocol",
+      },
+      id: null,
+    });
+  }
 });
 
 /**
@@ -91,28 +136,15 @@ app.listen(PORT, () => {
   console.log(`Iris Research MCP server running on port ${PORT}`);
 });
 
-/**
- * Nasty shim to normalize the request body to JSON-RPC format for Vapi.
- *
- * @param {Object} body - The request body
- * @returns {Object} The normalized request body
- */
-function normalizeToJsonRpc(body?: {
-  jsonrpc: string;
-  method: string;
-  name?: string;
-  phoneNumber?: string;
-  query?: string;
-}) {
-  if (body?.jsonrpc === "2.0" && typeof body?.method === "string") {
-    return body;
+process.on("SIGINT", async () => {
+  console.log("Shutting down server...");
+  for (const sessionId in transports) {
+    try {
+      await transports[sessionId].close();
+    } catch (err) {
+      console.error(`Error closing transport ${sessionId}:`, err);
+    }
+    delete transports[sessionId];
   }
-
-  const { name, phoneNumber, query } = body ?? {};
-  return {
-    jsonrpc: "2.0",
-    id: "vapi-fallback",
-    method: "iris-research",
-    params: { name, phoneNumber, query },
-  };
-}
+  process.exit(0);
+});
